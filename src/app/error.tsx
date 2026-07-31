@@ -1,0 +1,2 @@
+"use client";
+export default function ErrorPage({reset}:{reset:()=>void}){return <div className="shell page"><div className="card" style={{padding:32}}><h2 style={{fontSize:"1.3rem",fontWeight:800}}>Could not load this page.</h2><p className="subtitle" style={{margin:"10px 0 20px"}}>Please check your connection and try again.</p><button className="btn btn-primary" onClick={reset}>Try again</button></div></div>}

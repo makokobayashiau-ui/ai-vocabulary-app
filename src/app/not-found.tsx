@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound(){return <main className="shell page" style={{textAlign:"center"}}><p className="eyebrow">404</p><h1 className="title" style={{margin:"14px 0"}}>Memo not found</h1><p className="subtitle" style={{margin:"0 auto 24px"}}>It may be deleted, or you may not have access.</p><Link className="btn btn-primary" href="/expressions">Back to list</Link></main>}
