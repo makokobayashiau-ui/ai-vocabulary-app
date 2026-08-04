@@ -16,7 +16,23 @@ type BulkStatus = {
   firstFailure: string | null;
 };
 
-export function BulkGenerateExplanationsButton({ normalizedExpressions }: { normalizedExpressions: string[] }) {
+export function BulkGenerateExplanationsButton({
+  normalizedExpressions,
+  force = false,
+  buttonLabel,
+  runningLabel,
+  emptyLabel,
+  readyLabel,
+  completedLabel,
+}: {
+  normalizedExpressions: string[];
+  force?: boolean;
+  buttonLabel?: string;
+  runningLabel?: string;
+  emptyLabel?: string;
+  readyLabel?: string;
+  completedLabel?: string;
+}) {
   const router = useRouter();
   const targets = useMemo(() => [...new Set(normalizedExpressions)].filter(Boolean), [normalizedExpressions]);
   const [status, setStatus] = useState<BulkStatus>({
@@ -45,7 +61,7 @@ export function BulkGenerateExplanationsButton({ normalizedExpressions }: { norm
       setStatus({ total: targets.length, current: index + 1, completed, skipped, failed, running: true, done: false, firstFailure });
 
       try {
-        const result = await generateExpressionExplanation(normalizedExpression, { force: false });
+        const result = await generateExpressionExplanation(normalizedExpression, { force });
         if (result.skipped) {
           skipped += 1;
         } else if (result.success || result.status === "completed") {
@@ -76,19 +92,19 @@ export function BulkGenerateExplanationsButton({ normalizedExpressions }: { norm
         aria-busy={status.running}
       >
         <Sparkles size={17} />
-        {status.running ? "Creating explanations..." : "Create all AI explanations"}
+        {status.running ? (runningLabel ?? "Creating explanations...") : (buttonLabel ?? "Create all AI explanations")}
       </button>
       <div className="hint" role="status">
         {targets.length ? (
           status.running || status.done ? (
             <>
-              Progress: {status.current}/{status.total} ・ Created: {status.completed} ・ Skipped: {status.skipped} ・ Failed: {status.failed}
+              Progress: {status.current}/{status.total} ・ {completedLabel ?? "Created"}: {status.completed} ・ Skipped: {status.skipped} ・ Failed: {status.failed}
             </>
           ) : (
-            <>Expressions without AI explanation: {targets.length}</>
+            <>{emptyLabel ?? "Expressions without AI explanation"}: {targets.length}</>
           )
         ) : (
-          <>All explanations are ready.</>
+          <>{readyLabel ?? "All explanations are ready."}</>
         )}
       </div>
       {process.env.NODE_ENV === "development" && status.firstFailure ? (

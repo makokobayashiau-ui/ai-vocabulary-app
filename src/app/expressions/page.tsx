@@ -42,6 +42,10 @@ function explanationStatusLabel(status?: ExplanationGenerationStatus) {
   return "No AI explanation yet";
 }
 
+function isBlank(value: unknown): boolean {
+  return typeof value !== "string" || value.trim().length === 0;
+}
+
 export default async function ExpressionsPage({ searchParams }: { searchParams: Promise<Params> }) {
   const rawParams = await searchParams;
   const queryState = expressionGroupQuerySchema.parse(rawParams);
@@ -77,6 +81,7 @@ export default async function ExpressionsPage({ searchParams }: { searchParams: 
   let passageRows: PassageExpressionCountSummary[] = [];
   let explanationStatusByNormalized = new Map<string, ExplanationGenerationStatus>();
   let missingExplanationExpressions: string[] = [];
+  let missingJapaneseReadingExpressions: string[] = [];
   let total = 0;
   let loadError: string | null = null;
 
@@ -122,16 +127,28 @@ export default async function ExpressionsPage({ searchParams }: { searchParams: 
     } else {
       const allNormalizedValues = [...new Set((allExpressionRows ?? []).map((row) => row.normalized_expression as string).filter(Boolean))];
       if (allNormalizedValues.length) {
+        const allNormalizedSet = new Set(allNormalizedValues);
         const { data: completedRows, error: completedError } = await supabase.from("expression_explanations")
-          .select("normalized_expression")
+          .select("normalized_expression,generation_status,japanese_meaning_hiragana,japanese_meaning_romaji")
           .eq("user_id", user.id)
           .eq("generation_status", "completed")
-          .in("normalized_expression", allNormalizedValues);
+          .limit(5000);
         if (completedError) {
-          console.error("completed explanation lookup failed", { code: completedError.code, message: completedError.message });
+          console.error("completed explanation lookup failed", {
+            code: completedError.code,
+            message: completedError.message,
+            details: completedError.details,
+            hint: completedError.hint,
+          });
         } else {
-          const completed = new Set((completedRows ?? []).map((row) => row.normalized_expression as string));
+          const completedRowsForSavedExpressions = (completedRows ?? [])
+            .filter((row) => allNormalizedSet.has(row.normalized_expression as string));
+          const completed = new Set(completedRowsForSavedExpressions.map((row) => row.normalized_expression as string));
           missingExplanationExpressions = allNormalizedValues.filter((normalized) => !completed.has(normalized));
+          missingJapaneseReadingExpressions = completedRowsForSavedExpressions
+            .filter((row) => isBlank(row.japanese_meaning_hiragana) || isBlank(row.japanese_meaning_romaji))
+            .map((row) => row.normalized_expression as string)
+            .filter(Boolean);
         }
       }
     }
@@ -172,8 +189,19 @@ export default async function ExpressionsPage({ searchParams }: { searchParams: 
         <ExpressionViewTabs view={queryState.view} query={queryState.q} />
 
         {queryState.view === "all" ? (
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16, display: "grid", gap: 10 }}>
             <BulkGenerateExplanationsButton normalizedExpressions={missingExplanationExpressions} />
+            {missingJapaneseReadingExpressions.length ? (
+              <BulkGenerateExplanationsButton
+                normalizedExpressions={missingJapaneseReadingExpressions}
+                force
+                buttonLabel="Update Japanese readings"
+                runningLabel="Updating readings..."
+                emptyLabel="Explanations without reading or pronunciation"
+                readyLabel="All Japanese readings are ready."
+                completedLabel="Updated"
+              />
+            ) : null}
           </div>
         ) : null}
 

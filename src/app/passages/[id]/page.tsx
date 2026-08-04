@@ -27,7 +27,7 @@ export default async function PassageDetail({ params, searchParams }: { params: 
   const passage = passageData as Passage;
   const remove = deletePassage.bind(null, id);
   const { data: selectionData, error: selectionError } = await supabase.from("expressions")
-    .select("id,target_expression,normalized_expression,source_sentence,selection_start,selection_end")
+    .select("id,target_expression,normalized_expression,source_sentence,selection_start,selection_end,created_at")
     .eq("user_id", user.id)
     .eq("passage_id", passage.id)
     .is("deleted_at", null)
@@ -39,7 +39,7 @@ export default async function PassageDetail({ params, searchParams }: { params: 
     console.error("Failed to load saved selection ranges", { code: selectionError.code, message: selectionError.message });
   }
 
-  const selectedExpressions = (selectionData ?? []) as Pick<Expression, "id" | "target_expression" | "normalized_expression" | "source_sentence" | "selection_start" | "selection_end">[];
+  const selectedExpressions = (selectionData ?? []) as Pick<Expression, "id" | "target_expression" | "normalized_expression" | "source_sentence" | "selection_start" | "selection_end" | "created_at">[];
   const normalizedValues = [...new Set(selectedExpressions.map((expression) => expression.normalized_expression))];
   const [{ data: occurrenceData, error: occurrenceError }, { data: explanationData, error: explanationError }] = normalizedValues.length
     ? await Promise.all([
@@ -82,6 +82,7 @@ export default async function PassageDetail({ params, searchParams }: { params: 
       occurrenceCount: occurrenceCounts.get(expression.normalized_expression) ?? null,
       targetExpression: expression.target_expression,
       normalizedExpression: expression.normalized_expression,
+      createdAt: expression.created_at,
     }));
   const readingExpressions: ReadingModeExpression[] = selectedExpressions.map((expression) => ({
     id: expression.id,

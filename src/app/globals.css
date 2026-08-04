@@ -133,6 +133,7 @@ button,input,textarea,select { font:inherit; }
 .quiz-japanese-hint { display:grid; gap:5px; margin-top:5px; color:var(--muted); font-size:.88em; font-weight:650; text-transform:none; letter-spacing:0; }
 .quiz-japanese-hint-row { display:grid; gap:1px; }
 .quiz-japanese-hint-label { color:var(--green); font-size:.72em; font-weight:850; letter-spacing:.06em; text-transform:uppercase; }
+.quiz-japanese-hint-line { overflow-wrap:anywhere; }
 .passage-quiz-question-card .quiz-meaning-choice { font-size:clamp(1.15rem,3vw,1.45rem); }
 .passage-quiz-option[data-correct="true"] { background:#eef7f1; border-color:#9dcaaa; color:#194d38; }
 .passage-quiz-option[data-picked-wrong="true"] { background:#fff8e8; border-color:#edd8a9; color:#754e0d; }

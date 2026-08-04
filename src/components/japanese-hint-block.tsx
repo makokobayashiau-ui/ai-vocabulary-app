@@ -5,27 +5,17 @@ export type JapaneseHint = {
 };
 
 export function JapaneseHintBlock({ hint }: { hint: JapaneseHint }) {
+  const japanese = hint.japanese.trim();
   const hiragana = hint.hiragana?.trim();
   const romaji = hint.romaji?.trim();
+  const parts = [japanese, hiragana, romaji].filter((value): value is string => Boolean(value));
 
   return (
     <span className="quiz-japanese-hint">
       <span className="quiz-japanese-hint-row">
         <span className="quiz-japanese-hint-label">Japanese</span>
-        <span>{hint.japanese}</span>
+        <span className="quiz-japanese-hint-line">{parts.join(" ／ ")}</span>
       </span>
-      {hiragana ? (
-        <span className="quiz-japanese-hint-row">
-          <span className="quiz-japanese-hint-label">Reading</span>
-          <span>{hiragana}</span>
-        </span>
-      ) : null}
-      {romaji ? (
-        <span className="quiz-japanese-hint-row">
-          <span className="quiz-japanese-hint-label">Pronunciation</span>
-          <span>{romaji}</span>
-        </span>
-      ) : null}
     </span>
   );
 }

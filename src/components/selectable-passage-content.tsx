@@ -9,6 +9,9 @@ export type SavedRange = {
   selectionStart: number;
   selectionEnd: number;
   occurrenceCount: number | null;
+  targetExpression?: string | null;
+  normalizedExpression?: string | null;
+  createdAt?: string | null;
 };
 
 type SelectionRange = {
@@ -31,6 +34,23 @@ type DebugState = {
   lastActionResult: unknown;
   submitStarted: boolean;
   submitBlockedReason: string | null;
+};
+
+type RangeCandidate = {
+  range: SavedRange;
+  index: number;
+  text: string;
+  length: number;
+  exactMatch: boolean;
+  createdTime: number;
+};
+
+type RangeDedupeResult = {
+  ranges: SavedRange[];
+  invalidCount: number;
+  duplicateOrOverlapCount: number;
+  inputCount: number;
+  outputCount: number;
 };
 
 function toCodePoints(value: string) {
@@ -63,6 +83,89 @@ function colorClass(count: number | null) {
 
 function countLabel(count: number | null) {
   return count === null ? "Could not check the count" : `Saved ${count} times`;
+}
+
+function rangesOverlap(first: Pick<SavedRange, "selectionStart" | "selectionEnd">, second: Pick<SavedRange, "selectionStart" | "selectionEnd">) {
+  return first.selectionStart < second.selectionEnd && second.selectionStart < first.selectionEnd;
+}
+
+function normalizeForRangeCompare(value: string | null | undefined) {
+  return (value ?? "").trim();
+}
+
+function candidateScore(candidate: RangeCandidate) {
+  return [
+    candidate.exactMatch ? 1 : 0,
+    candidate.length,
+    candidate.createdTime,
+    candidate.index,
+  ] as const;
+}
+
+function betterCandidate(first: RangeCandidate, second: RangeCandidate) {
+  const firstScore = candidateScore(first);
+  const secondScore = candidateScore(second);
+  for (let index = 0; index < firstScore.length; index += 1) {
+    if (firstScore[index] !== secondScore[index]) return firstScore[index] > secondScore[index] ? first : second;
+  }
+  return first;
+}
+
+function dedupeSavedRanges(content: string, ranges: SavedRange[]): RangeDedupeResult {
+  const contentLength = codePointLength(content);
+  const candidates: RangeCandidate[] = [];
+  let invalidCount = 0;
+
+  ranges.forEach((range, index) => {
+    if (!Number.isInteger(range.selectionStart) || !Number.isInteger(range.selectionEnd)) {
+      invalidCount += 1;
+      return;
+    }
+    if (range.selectionStart < 0 || range.selectionEnd > contentLength || range.selectionEnd <= range.selectionStart) {
+      invalidCount += 1;
+      return;
+    }
+
+    const text = sliceCodePoints(content, range.selectionStart, range.selectionEnd);
+    const target = normalizeForRangeCompare(range.targetExpression);
+    const exactMatch = target ? text === target : true;
+    if (!exactMatch) {
+      invalidCount += 1;
+      return;
+    }
+
+    candidates.push({
+      range,
+      index,
+      text,
+      length: range.selectionEnd - range.selectionStart,
+      exactMatch,
+      createdTime: range.createdAt ? new Date(range.createdAt).getTime() || 0 : 0,
+    });
+  });
+
+  const groups: RangeCandidate[][] = [];
+  for (const candidate of candidates.sort((a, b) => a.range.selectionStart - b.range.selectionStart || b.length - a.length)) {
+    const group = groups.find((items) => items.some((item) => rangesOverlap(item.range, candidate.range)));
+    if (group) {
+      group.push(candidate);
+    } else {
+      groups.push([candidate]);
+    }
+  }
+
+  const deduped = groups
+    .map((group) => group.reduce((best, candidate) => betterCandidate(best, candidate)))
+    .sort((a, b) => a.range.selectionStart - b.range.selectionStart || a.range.selectionEnd - b.range.selectionEnd)
+    .map((candidate) => candidate.range);
+
+  return {
+    ranges: deduped,
+    invalidCount,
+    duplicateOrOverlapCount: candidates.length - deduped.length,
+    inputCount: ranges.length,
+    outputCount: deduped.length,
+  };
 }
 
 function buildSegments(content: string, ranges: SavedRange[]) {
@@ -138,7 +241,14 @@ export function SelectablePassageContent({
   });
   const [isPending, startTransition] = useTransition();
 
-  const segments = useMemo(() => buildSegments(content, savedRanges), [content, savedRanges]);
+  const dedupedRanges = useMemo(() => dedupeSavedRanges(content, savedRanges), [content, savedRanges]);
+  const segments = useMemo(() => buildSegments(content, dedupedRanges.ranges), [content, dedupedRanges.ranges]);
+
+  useEffect(() => {
+    if (dedupedRanges.invalidCount > 0 || dedupedRanges.duplicateOrOverlapCount > 0) {
+      console.info("Saved selection ranges were deduplicated for rendering", dedupedRanges);
+    }
+  }, [dedupedRanges]);
 
   function selectionIsInsideContent(selected: Selection) {
     const container = contentRef.current;
@@ -245,6 +355,9 @@ export function SelectablePassageContent({
             selectionStart: currentSelection.selectionStart,
             selectionEnd: currentSelection.selectionEnd,
             occurrenceCount,
+            targetExpression: currentSelection.text,
+            normalizedExpression: currentSelection.text.trim().toLowerCase().replace(/\s+/g, " "),
+            createdAt: new Date().toISOString(),
           },
         ]);
         setDebugState((debug) => ({ ...debug, lastStep: "saved-range-added" }));
@@ -355,6 +468,7 @@ export function SelectablePassageContent({
             {
               pendingSelection,
               savedRanges,
+              dedupedRanges,
               lastStep: debugState.lastStep,
               lastSelectionEvent: debugState.lastSelectionEvent,
               lastSelectionClearReason: debugState.lastSelectionClearReason,
