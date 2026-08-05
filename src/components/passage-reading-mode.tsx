@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { BookOpen, ExternalLink } from "lucide-react";
+import { BookOpen, ExternalLink, X } from "lucide-react";
 import { ExplanationCard } from "@/components/explanation-card";
 import { SelectablePassageContent, type SavedRange } from "@/components/selectable-passage-content";
 import type { ExpressionExplanation } from "@/types/database";
@@ -34,6 +34,7 @@ export function PassageReadingMode({
   const firstExpressionId = ranges[0]?.expressionId ?? expressions[0]?.id ?? null;
   const [selectedExpressionId, setSelectedExpressionId] = useState<string | null>(firstExpressionId);
   const [showSavedWords, setShowSavedWords] = useState(true);
+  const [isExplanationPanelOpen, setIsExplanationPanelOpen] = useState(true);
 
   const expressionById = useMemo(
     () => new Map(expressions.map((expression) => [expression.id, expression])),
@@ -42,7 +43,7 @@ export function PassageReadingMode({
   const selectedExpression = selectedExpressionId ? expressionById.get(selectedExpressionId) ?? null : null;
 
   return (
-    <div className="reading-mode-grid">
+    <div className="reading-mode-grid" data-panel-open={isExplanationPanelOpen ? "true" : "false"}>
       <section className="reading-mode-passage-card">
         <div className="reading-mode-section-heading">
           <div>
@@ -68,11 +69,23 @@ export function PassageReadingMode({
           initialRanges={ranges}
           selectedExpressionId={selectedExpressionId}
           showSavedWords={showSavedWords}
-          onSelectRange={(range) => setSelectedExpressionId(range.expressionId)}
+          onSelectRange={(range) => {
+            setSelectedExpressionId(range.expressionId);
+            setIsExplanationPanelOpen(true);
+          }}
         />
       </section>
 
+      {isExplanationPanelOpen ? (
       <aside className="reading-mode-panel" aria-label="Expression explanation panel">
+        <button
+          type="button"
+          className="reading-mode-panel-close"
+          aria-label="Close explanation panel"
+          onClick={() => setIsExplanationPanelOpen(false)}
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
         {selectedExpression ? (
           <div className="reading-mode-panel-inner">
             <div className="reading-mode-context">
@@ -100,6 +113,7 @@ export function PassageReadingMode({
           </div>
         )}
       </aside>
+      ) : null}
     </div>
   );
 }

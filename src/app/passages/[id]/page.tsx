@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, CircleHelp, Edit3, ListChecks, Plus } from "lucide-react";
+import { ArrowLeft, CircleHelp, Edit3, ListChecks, MessageSquareText, Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { DeletePassageDialog } from "@/components/delete-passage-dialog";
 import { PassageReadingMode, type ReadingModeExpression, type ReadingModeRange } from "@/components/passage-reading-mode";
@@ -111,6 +111,7 @@ export default async function PassageDetail({ params, searchParams }: { params: 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Link className="btn" href={`/passages/${id}/expressions`}><ListChecks size={17} />View saved expressions</Link>
               <Link className="btn btn-soft" href={`/passages/${id}/quiz`}><CircleHelp size={17} />Start quiz</Link>
+              <Link className="btn btn-soft" href={`/passages/${id}/sentence-challenge`}><MessageSquareText size={17} />Sentence Challenge</Link>
               <Link className="btn btn-primary" href={`/passages/${id}/expressions/new`}><Plus size={17} />Add expression</Link>
               <Link className="btn" href={`/passages/${id}/edit`}><Edit3 size={17} />Edit</Link>
               <DeletePassageDialog action={remove} />
